@@ -20,7 +20,7 @@ def CalcPlasticity (
         sample_key: Optional[str] = 'batch', 
         initial_sample: Optional[str] = 'Wk0'
 ) -> AnnData:
-    """Function for computing per-cell plasticity scores based on cell-type probabilities. Cell-type  probabilties are based on Markov absorption using a diffusion graph as well as training labels corresponding to wild-type Basal and Luminal cell types. Per-cell plasticity is then measured as entropy of cell-type probabilties, 
+    """Function for computing per-cell plasticity scores based on cell-type probabilities. Cell-type  probabilties are based on random walk classification using a diffusion graph as well as training labels corresponding to wild-type Basal and Luminal cell types. Per-cell plasticity is then measured as entropy of cell-type probabilties, 
     :param adata: adata object of single cells from the combined time-course  
     :param WT_cell_type: Series object of Basal and Luminal cell type labels for Wild-type cells (Pandas Series). If not specified, will be extracted from the column name sample_key + '_plus_wt_cells'.
     :param n_neighbors: Number of kNN neighbors. Default 25 (int)  
@@ -59,7 +59,7 @@ def CalcPlasticity (
                            columns = cell_types)
 
 
-    pval_df.columns = 'pval_markov_' + pval_df.columns
+    pval_df.columns = 'pval_randomwalk_' + pval_df.columns
 
     tmp = pval_df.subtract(pval_df.min(axis=1), axis=0)
     pval_df = tmp.div(tmp.sum(axis=1), axis=0)
@@ -68,7 +68,7 @@ def CalcPlasticity (
         adata.obs.loc[:, i] = pval_df.loc[:,i]
 
     H = pval_df.apply(entropy, axis=1)
-    adata.obs.loc[:,'plasticity_markov_entropy'] = H
+    adata.obs.loc[:,'plasticity_randomwalk_entropy'] = H
 
     return adata
 
@@ -80,7 +80,7 @@ def BoxplotProbabilities (
         save: Optional[str] = None,
         colors:Optional[list] = None
 ):
-    """Function for plotting the distribution of Markov absorption probabilties across samples for each Basal and Luminal cell type 
+    """Function for plotting the distribution of random walk probabilties across samples for each Basal and Luminal cell type 
     :param adata: adata object of single cells from the combined time-course
     :param sample_key: Column name for samples/batches stored in adata.obs (str)
     :param initial_sample: Name of the wild-type sample (str)
@@ -90,13 +90,13 @@ def BoxplotProbabilities (
 
     # Error check
 
-    if ~adata.obs.columns.str.contains('pval_markov').any():
-        raise RuntimeError('Run MarkovAbsorption.CalcProbabilities first.')
+    if ~adata.obs.columns.str.contains('pval_randomwalk').any():
+        raise RuntimeError('Run RandomWalk.CalcProbabilities first.')
 
-    labels = adata.obs.columns[adata.obs.columns.str.contains('pval_markov')]
+    labels = adata.obs.columns[adata.obs.columns.str.contains('pval_randomwalk')]
 
     plot_df = adata.obs.loc[adata.obs.loc[:,sample_key] != initial_sample, labels].melt(var_name = 'Cell Type', value_name = 'p-value')
-    plot_df.loc[:,'Cell Type'] = plot_df.loc[:,'Cell Type'].str.replace('pval_markov_','')
+    plot_df.loc[:,'Cell Type'] = plot_df.loc[:,'Cell Type'].str.replace('pval_randomwalk_','')
 
     sc.set_figure_params(fontsize = 20)
     sns.set_style('ticks')
@@ -124,7 +124,7 @@ def BarycentricProbabilities (
         width: Optional[float] = 7,
         height: Optional[float] = 7,
 ):
-    """Function for plotting Markov absorption probabilties for the 3 predominant Basal and Luminal cell types represented among mutant cells  
+    """Function for plotting random walk probabilties for the 3 predominant Basal and Luminal cell types represented among mutant cells  
     :param adata: adata object of single cells from the combined time-course
     :param save: File name to save figure. Must be PDF
     :param sample_key: Column name for samples/batches stored in adata.obs (str)
@@ -136,13 +136,13 @@ def BarycentricProbabilities (
 
     # Error check
 
-    if ~adata.obs.columns.str.contains('pval_markov').any():
-        raise RuntimeError('Run MarkovAbsorption.CalcProbabilities first.')
+    if ~adata.obs.columns.str.contains('pval_randomwalk').any():
+        raise RuntimeError('Run RandomWalk.CalcProbabilities first.')
 
     rscript_path = str(pathlib.Path().resolve())
 
     if save == None:
-        save = os.path.join(rscript_path,'figures','ternary.MarkovAbsorption.pdf')
+        save = os.path.join(rscript_path,'figures','ternary.RandomWalk.pdf')
 
     obs_input_path = str(rscript_path)
 
@@ -161,7 +161,7 @@ def PlotEntropy (
         width: Optional[float] = 5,
         height: Optional[float] = 5,
 ):
-    """Function for plotting entropy of Markov absorption probabilties as a per-cell measure of plasticity
+    """Function for plotting entropy of random walk probabilties as a per-cell measure of plasticity
     :param adata: adata object of single cells from the combined time-course
     :param sample_key: Column name for samples/batches stored in adata.obs (str)
     :param save: File name to save figure
@@ -172,10 +172,10 @@ def PlotEntropy (
 
     # Error check
 
-    if ~adata.obs.columns.str.contains('pval_markov').any():
-        raise RuntimeError('Run MarkovAbsorption.CalcProbabilities first.')
+    if ~adata.obs.columns.str.contains('pval_randomwalk').any():
+        raise RuntimeError('Run RandomWalk.CalcProbabilities first.')
 
-    plot_df = adata.obs.loc[:,[sample_key,'time','treatment','plasticity_markov_entropy']]
+    plot_df = adata.obs.loc[:,[sample_key,'time','treatment','plasticity_randomwalk_entropy']]
     plot_df.columns = ['Sample','Timepoint','Treatment','Entropy']
 
     sc.set_figure_params(fontsize = 16)
